@@ -54,7 +54,7 @@ created: 2026-06-30
 - **Suggest changes**: Reviewers can propose edits directly
 - **No CI**: This repo contains only markdown — no code to test
 - **Consensus**: A proposal is accepted when maintainers of the affected repos approve. For cross-repo proposals, maintainers of ALL affected repos should approve.
-- **Deadline**: Set a feedback deadline in the PR description (typically 2-4 weeks). Summarize feedback and revised decisions before merging.
+- **Iterate**: Address review comments by pushing commits to your PR branch. Once consensus is reached, summarize feedback and revised decisions before merging.
 
 ## After acceptance
 
