@@ -100,10 +100,4 @@ AI coding assistants working on HyperSpy should:
 
 ## License
 
-Proposals in this repository are licensed under **CC-BY-SA-4.0** (Creative Commons Attribution-ShareAlike 4.0 International). This is the content equivalent of HyperSpy's GPL-3.0 for code:
-
-- **Attribution required** — anyone adapting a proposal must credit the original authors
-- **Share-alike** — derivative proposals must use the same CC-BY-SA-4.0 license
-- **Ideas are not restricted** — implementing a proposal's ideas in code (open or proprietary) is always permitted; the license protects the proposal document, not the ideas themselves
-
-This ensures the ecosystem of ideas stays open, just as HyperSpy's GPL-3.0 ensures the code stays open.
+Proposals in this repository are licensed under [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/) (Creative Commons Attribution-ShareAlike 4.0 International).
