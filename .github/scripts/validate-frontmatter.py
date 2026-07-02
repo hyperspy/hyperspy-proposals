@@ -98,7 +98,7 @@ def _nonzero_str(value: object) -> bool:
 
 def main() -> int:
     repo_root = Path(__file__).resolve().parent.parent.parent
-    md_files = sorted(repo_root.glob("[0-9][0-9][0-9][0-9]-*.md"))
+    md_files = sorted(repo_root.glob("proposals/[0-9][0-9][0-9][0-9]-*.md"))
 
     all_errors: dict[str, list[str]] = {}
     errors = 0

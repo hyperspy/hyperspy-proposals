@@ -17,7 +17,7 @@ AI coding tools can generate large amounts of code quickly. A proposal gives the
 
 ## How to submit a proposal
 
-1. **Create a markdown file** named `<PR_NUMBER>-<short-slug>.md` (e.g., `0001-hspy-spec.md`). Use the PR number you'll get when you open the PR — if unsure, use a placeholder and rename after.
+1. **Create a markdown file** named `<PR_NUMBER>-<short-slug>.md` in the `proposals/` directory (e.g., `proposals/0001-hspy-spec.md`). Use the PR number you'll get when you open the PR — if unsure, use a placeholder and rename after.
 
 2. **Start the file with a YAML metadata block:**
 
@@ -64,7 +64,7 @@ AI coding tools can generate large amounts of code quickly. A proposal gives the
 
 2. **Start implementation.** Open implementation PRs in the target repos (e.g., `hyperspy/hyperspy`, `hyperspy/rosettasciio`).
 
-3. **Reference the proposal.** In each implementation PR, include: "Implements [proposal 0001](./0001-hspy-spec.md)."
+3. **Reference the proposal.** In each implementation PR, include: "Implements [proposal 0001](./proposals/0001-hspy-spec.md)."
 
 4. **Update proposal status.** After implementation is merged, update the proposal's metadata: `status: implemented`.
 

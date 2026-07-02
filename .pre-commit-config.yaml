@@ -18,7 +18,7 @@ repos:
         name: Validate proposal frontmatter
         entry: python .github/scripts/validate-frontmatter.py
         language: system
-        files: '^[0-9]{4}-.*\.md$'
+        files: '^proposals/[0-9]{4}-.*\.md$'
         pass_filenames: false
       - id: check-ai-co-author
         name: Block Co-authored-by AI trailers
