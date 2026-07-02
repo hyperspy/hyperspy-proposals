@@ -13,7 +13,7 @@ This is the central proposals repository for the [hyperspy](https://github.com/h
 
 ## Proposal Format
 
-Each proposal is a markdown file named `<PR_NUMBER>-<short-slug>.md` with a YAML frontmatter block:
+Each proposal is a markdown file named `proposals/<PR_NUMBER>-<short-slug>.md` with a YAML frontmatter block:
 
 ```yaml
 ---
@@ -27,6 +27,24 @@ ai_assisted: true
 created: 2026-07-01
 ---
 ```
+
+### Required sections
+
+A proposal is a **decision document**, not a design document. Its purpose is to help reviewers make a decision. Use these sections:
+
+1. **Summary** — 2-3 sentences: what, why, what decision is needed. A reviewer should understand the entire proposal from this alone.
+2. **Problem** — concrete, with examples. What's broken today?
+3. **Proposed approach** — high-level: what are we proposing and why this way? Include an **Alternatives considered** table.
+4. **Impact** — what breaks? For users, extension maintainers, the ecosystem. Migration path. Effort estimate.
+5. **Scope** — what's in. What's explicitly NOT in (guardrails against scope creep).
+6. **References** — links to discussions, issues, PRs.
+7. **Technical design** — mandatory. Tree diagrams, encoding tables, governance models, code samples, conversion examples. This is where implementation detail goes, not in the proposal body.
+
+### What NOT to include
+
+- Questions for the community (discussion belongs in PR review)
+- Unverified claims or speculation
+- Implementation specs in the body (put them in Technical design)
 
 ## CI Checks
 

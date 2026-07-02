@@ -34,14 +34,17 @@ AI coding tools can generate large amounts of code quickly. A proposal gives the
    ---
    ```
 
-3. **Write the proposal.** Include:
+3. **Write the proposal.** A proposal is a decision document, not a design document. Include these sections:
 
-   - The problem being solved
-   - The proposed approach
-   - What changes in each affected repo
-   - Breaking changes (if any)
-   - Questions for the community
-   - References to relevant issues/PRs/discussions
+   - **Summary** — 2-3 sentences: what, why, what decision is needed
+   - **Problem** — concrete, with examples
+   - **Proposed approach** — high-level, with an alternatives considered table
+   - **Impact** — what breaks, migration path, effort estimate
+   - **Scope** — what's in, what's explicitly NOT in
+   - **References** — links to discussions, issues, PRs
+   - **Technical design** — mandatory: tree diagrams, encoding tables, code samples, governance models
+
+   See [AGENTS.md](AGENTS.md) for detailed guidance on each section.
 
 4. **Open a PR** to this repository with the markdown file.
 
