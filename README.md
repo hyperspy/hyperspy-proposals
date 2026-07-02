@@ -67,7 +67,7 @@ AI coding tools can generate large amounts of code quickly. A proposal gives the
 
 2. **Start implementation.** Open implementation PRs in the target repos (e.g., `hyperspy/hyperspy`, `hyperspy/rosettasciio`).
 
-3. **Reference the proposal.** In each implementation PR, include: "Implements [proposal 0001](./proposals/0001-hspy-spec.md)."
+3. **Reference the proposal.** In each implementation PR, include: "Implements [proposal 0001](https://github.com/hyperspy/hyperspy-proposals/pull/1)."
 
 4. **Update proposal status.** After implementation is merged, update the proposal's metadata: `status: implemented`.
 
