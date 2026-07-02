@@ -53,6 +53,7 @@ AI coding tools can generate large amounts of code quickly. A proposal gives the
 
 - **Inline comments**: Reviewers comment on specific lines/paragraphs (standard GitHub PR review)
 - **Suggest changes**: Reviewers can propose edits directly
+- **Rendered view**: Click **Display the rich diff** in the **Files changed** tab to see proposals rendered as formatted markdown instead of raw source. Or use **View file** to open the full rendered document.
 - **CI checks**: Every PR runs markdownlint, link-check, and frontmatter-validation
 - **Consensus**: A proposal is accepted when maintainers of the affected repos approve. For cross-repo proposals, maintainers of ALL affected repos should approve.
 - **Iterate**: Address review comments by pushing commits to your PR branch. Once consensus is reached, summarize feedback and revised decisions before merging.
