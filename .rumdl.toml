@@ -14,26 +14,7 @@ disable = [
   "MD041",  # first-line-heading — disabled in original config
   "MD051",  # link-fragments — disabled in original config
   "MD060",  # table-pipe-style — disabled in original config (also opt-in in rumdl)
-  # Rules below are rumdl-unique (not in markdownlint-cli v0.49.0)
-  # Disabled to maintain behavioral parity
   "MD057",  # relative-links-exist
-  "MD061",  # link-reference-style
-  "MD062",  # link-destination-whitespace
-  "MD064",  # no-double-space
-  "MD065",  # blanks-around-hr
-  "MD066",  # footnote-validation
-  "MD067",  # footnote-definition-order
-  "MD068",  # empty-footnote-definitions
-  "MD069",  # no-duplicate-list-markers
-  "MD071",  # blank-line-after-frontmatter
-  "MD075",  # orphaned-table-rows
-  "MD076",  # list-continuation
-  "MD077",  # nested-emphasis
-  "MD078",  # missing-chunk-labels (Quarto)
-  "MD079",  # chunk-label-spaces (Quarto)
-  "MD081",  # emphasis-consecutive
-  # Note: MD063, MD070, MD072, MD073, MD074, MD080, MD082 are opt-in
-  # (disabled by default in rumdl), so they don't need explicit disabling.
 ]
 
 # Respect .gitignore for excluded files
