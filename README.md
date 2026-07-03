@@ -57,7 +57,7 @@ AI coding tools can generate large amounts of code quickly. A proposal gives the
 - **Inline comments**: Reviewers comment on specific lines/paragraphs (standard GitHub PR review)
 - **Suggest changes**: Reviewers can propose edits directly
 - **Rendered view**: Click **Display the rich diff** in the **Files changed** tab to see proposals rendered as formatted markdown instead of raw source. Or use **View file** to open the full rendered document.
-- **CI checks**: Every PR runs markdownlint, link-check, and frontmatter-validation
+- **CI checks**: Every PR runs rumdl, link-check, and frontmatter-validation
 - **Consensus**: A proposal is accepted when maintainers of the affected repos approve. For cross-repo proposals, maintainers of ALL affected repos should approve.
 - **Iterate**: Address review comments by pushing commits to your PR branch. Once consensus is reached, summarize feedback and revised decisions before merging.
 
@@ -106,30 +106,27 @@ Install pixi, then run:
 
 ```bash
 pixi install
-pixi run install
 pixi run check
 ```
 
 `pixi install` creates the conda environment in `.pixi/`.
-`pixi run install` installs the local `markdownlint-cli` from `package.json`.
-`pixi run check` runs frontmatter validation, markdown lint, and link checks.
+`pixi run check` runs frontmatter validation, rumdl, and link checks.
 
 Available tasks:
 
 | Task | What it runs |
 |---|---|
-| `pixi run install` | Installs local npm dev dependencies (`markdownlint-cli`) |
-| `pixi run check` | Runs frontmatter, markdown lint, and link checks |
-| `pixi run fix` | Auto-fixes markdown issues where possible |
-| `pixi run lint` | Runs `markdownlint` only |
+| `pixi run check` | Runs frontmatter, rumdl, and link checks |
+| `pixi run fix` | Runs `rumdl fmt` to auto-fix markdown issues |
+| `pixi run lint` | Runs `rumdl check` only |
 | `pixi run links` | Runs `lychee` link check only |
 | `pixi run frontmatter` | Runs the proposal frontmatter validator only |
 | `pixi run pre-commit` | Runs all pre-commit hooks on all files |
 
 ### Formatting conventions
 
-The repository enforces [markdownlint](https://github.com/DavidAnson/markdownlint)
-rules defined in `.markdownlint.json`. Key conventions:
+The repository enforces [rumdl](https://github.com/rvben/rumdl)
+rules defined in `.rumdl.toml`. Key conventions:
 
 - **Ordered lists** use sequential numbering (1, 2, 3…).
 - **Headings** use ATX style (`#`, `##`, `###`).
@@ -137,7 +134,7 @@ rules defined in `.markdownlint.json`. Key conventions:
 - **Blank lines** must surround headings, lists, and fenced code blocks.
 - **Fenced code blocks** must specify a language.
 
-The full rule set is in `.markdownlint.json`. Run `pixi run fix` to auto-correct
+The full rule set is in `.rumdl.toml`. Run `pixi run fix` to auto-correct
 most issues.
 
 ### Alternative: conda
@@ -147,16 +144,15 @@ If you use [conda](https://conda.io/) or [mamba](https://mamba.readthedocs.io/):
 ```bash
 conda env create -f environment.yml
 conda activate hyperspy-proposals
-npm install
 python .github/scripts/validate-frontmatter.py
-node_modules/.bin/markdownlint .
+rumdl check .
 lychee --require-https .
 ```
 
 ### Not recommended: pip-only
 
-A `requirements.txt` file is provided for pip users, but it does not install Node.js or `lychee`.
-You will have to install those separately. Use this only if you cannot use pixi or conda.
+A `requirements.txt` file is provided for pip users, but it does not install `lychee`.
+You will have to install that separately. Use this only if you cannot use pixi or conda.
 
 ### Reproducing CI failures
 
@@ -166,14 +162,13 @@ in the repository root, and run:
 
 ```bash
 pixi install
-pixi run install
 ```
 
 This will recreate the precise dependency versions used in CI.
 
 ### Pre-commit hook (optional but recommended)
 
-[pre-commit](https://pre-commit.com/) runs the markdown and frontmatter checks automatically when you commit, including auto-fixes for many markdown issues.
+[pre-commit](https://pre-commit.com/) runs the rumdl and frontmatter checks automatically when you commit, including auto-fixes for many markdown issues.
 
 Install it once:
 
