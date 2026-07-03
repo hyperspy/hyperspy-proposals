@@ -18,8 +18,6 @@ jobs:
       - uses: prefix-dev/setup-pixi@v0.10.0
         with:
           pixi-version: ${{ env.PIXI_VERSION }}
-      - name: Install npm tools
-        run: pixi run install
       - name: Frontmatter validation
         run: pixi run frontmatter
       - name: Markdown lint

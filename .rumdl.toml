@@ -1,0 +1,65 @@
+# rumdl configuration for hyperspy-proposals
+# Migrated from .markdownlint.json — maintains rule parity with markdownlint-cli v0.49.0
+# rumdl has 53 markdownlint-compatible rules + 23 rumdl-unique rules (76 total)
+# All 23 rumdl-unique rules are disabled to maintain behavioral parity.
+
+[global]
+# Rules disabled in .markdownlint.json
+disable = [
+  "MD013",  # line-length — disabled in original config
+  "MD024",  # no-duplicate-heading — disabled in original config
+  "MD026",  # no-trailing-punctuation — disabled in original config
+  "MD033",  # no-inline-html — disabled in original config
+  "MD036",  # no-emphasis-as-heading — disabled in original config
+  "MD041",  # first-line-heading — disabled in original config
+  "MD051",  # link-fragments — disabled in original config
+  "MD060",  # table-pipe-style — disabled in original config (also opt-in in rumdl)
+  # Rules below are rumdl-unique (not in markdownlint-cli v0.49.0)
+  # Disabled to maintain behavioral parity
+  "MD057",  # relative-links-exist
+  "MD061",  # link-reference-style
+  "MD062",  # link-destination-whitespace
+  "MD064",  # no-double-space
+  "MD065",  # blanks-around-hr
+  "MD066",  # footnote-validation
+  "MD067",  # footnote-definition-order
+  "MD068",  # empty-footnote-definitions
+  "MD069",  # no-duplicate-list-markers
+  "MD071",  # blank-line-after-frontmatter
+  "MD075",  # orphaned-table-rows
+  "MD076",  # list-continuation
+  "MD077",  # nested-emphasis
+  "MD078",  # missing-chunk-labels (Quarto)
+  "MD079",  # chunk-label-spaces (Quarto)
+  "MD081",  # emphasis-consecutive
+  # Note: MD063, MD070, MD072, MD073, MD074, MD080, MD082 are opt-in
+  # (disabled by default in rumdl), so they don't need explicit disabling.
+]
+
+# Respect .gitignore for excluded files
+respect_gitignore = true
+
+# Additional excludes from .markdownlintignore (not covered by .gitignore)
+exclude = [
+  ".git",
+  "__pycache__",
+  "*.egg-info",
+  ".eggs",
+  ".env",
+  ".venv",
+  "venv",
+]
+
+# Rule configurations matching .markdownlint.json
+[MD003]
+style = "atx"
+
+[MD009]
+br_spaces = 2
+
+[MD025]
+level = 1
+front_matter_title = ""
+
+[MD029]
+style = "ordered"
