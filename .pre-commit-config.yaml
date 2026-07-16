@@ -6,11 +6,10 @@ ci:
   autoupdate_schedule: monthly
   skip: [validate-frontmatter, check-ai-co-author]
 repos:
-  - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.49.0
+  - repo: https://github.com/rvben/rumdl-pre-commit
+    rev: v0.2.28
     hooks:
-      - id: markdownlint
-        name: markdownlint
+      - id: rumdl
         args: ["--fix"]
   - repo: local
     hooks:

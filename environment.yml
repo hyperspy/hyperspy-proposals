@@ -4,8 +4,9 @@ channels:
   - nodefaults
 dependencies:
   - python >=3.10
-  - nodejs >=20
   - pip
   - pyyaml
   - lychee =0.23.0
   - pre-commit
+  - pip:
+      - rumdl==0.2.28

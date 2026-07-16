@@ -50,7 +50,7 @@ A proposal is a **decision document**, not a design document. Its purpose is to 
 
 Every PR runs these checks:
 
-- **markdownlint** — consistent formatting.
+- **rumdl** — consistent formatting.
 - **link-check** — no broken URLs.
 - **frontmatter-validation** — YAML metadata block is present, fields are valid, proposal number matches filename.
 - **ai-trailer** — commits include `Assisted-by: <tool>:<model>` trailers.

@@ -5,15 +5,16 @@ platforms = ["linux-64", "osx-arm64", "osx-64", "win-64"]
 
 [dependencies]
 python = ">=3.10"
-nodejs = ">=20"
 pyyaml = "*"
 lychee = "==0.23.0"
 pre-commit = "*"
 
+[pypi-dependencies]
+rumdl = "==0.2.28"
+
 [tasks]
-install = "npm install"
-lint = "./node_modules/.bin/markdownlint ."
-fix = "./node_modules/.bin/markdownlint --fix ."
+lint = "rumdl check ."
+fix = "rumdl fmt ."
 links = "lychee --require-https ."
 frontmatter = "python .github/scripts/validate-frontmatter.py"
 check = { depends-on = ["frontmatter", "lint", "links"] }

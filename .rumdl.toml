@@ -1,0 +1,46 @@
+# rumdl configuration for hyperspy-proposals
+# Migrated from .markdownlint.json — maintains rule parity with markdownlint-cli v0.49.0
+# rumdl has 53 markdownlint-compatible rules + 23 rumdl-unique rules (76 total)
+# All 23 rumdl-unique rules are disabled to maintain behavioral parity.
+
+[global]
+# Rules disabled in .markdownlint.json
+disable = [
+  "MD013",  # line-length — disabled in original config
+  "MD024",  # no-duplicate-heading — disabled in original config
+  "MD026",  # no-trailing-punctuation — disabled in original config
+  "MD033",  # no-inline-html — disabled in original config
+  "MD036",  # no-emphasis-as-heading — disabled in original config
+  "MD041",  # first-line-heading — disabled in original config
+  "MD051",  # link-fragments — disabled in original config
+  "MD060",  # table-pipe-style — disabled in original config (also opt-in in rumdl)
+  "MD057",  # relative-links-exist
+]
+
+# Respect .gitignore for excluded files
+respect_gitignore = true
+
+# Additional excludes from .markdownlintignore (not covered by .gitignore)
+exclude = [
+  ".git",
+  "__pycache__",
+  "*.egg-info",
+  ".eggs",
+  ".env",
+  ".venv",
+  "venv",
+]
+
+# Rule configurations matching .markdownlint.json
+[MD003]
+style = "atx"
+
+[MD009]
+br_spaces = 2
+
+[MD025]
+level = 1
+front_matter_title = ""
+
+[MD029]
+style = "ordered"

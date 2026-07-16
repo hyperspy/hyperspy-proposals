@@ -1,3 +1,4 @@
-node_modules/
 .pixi/
 pixi.lock
+.rumdl_cache/
+.omo/
