@@ -13,7 +13,7 @@ created: 2026-07-04
 
 ## Summary
 
-Replace HyperSpy's 10-year-old custom event system (`hyperspy/events.py`) with a psygnal-backed implementation that eliminates the fragile `exec()`-based trigger generation, adds weakref-based listener leak prevention, and introduces a psygnal-native dual API (`emit()`, `blocked()`, `__call__()`). In HyperSpy 2.5, the old API (`trigger()`, `suppress()`, `suppress_callback()`, `connect(kwargs=...)`) remains as deprecated aliases emitting `VisibleDeprecationWarning` — all internal HyperSpy code is migrated to the new API, and downstream packages (pyxem, exspy, lumispy) get a full release cycle to migrate. In HyperSpy 3.0, the old API surface is removed.
+Replace HyperSpy's 10-year-old custom event system (`hyperspy/events.py`) with a psygnal-backed implementation that eliminates the fragile `exec()`-based trigger generation and adds psygnal-native APIs (`emit()`, `blocked()`, `__call__()`). The `Event` class now subclasses `psygnal.SignalInstance` directly, providing both the native psygnal API and a deprecated legacy shim (`trigger()`, `suppress()`, `connect(kwargs=...)`, `suppress_callback()`). The old `Events` container class is replaced by `psygnal.SignalGroup` subclasses with `EventSignal` factory descriptors. In HyperSpy 2.5, all internal HyperSpy code (78 `emit()` sites, 10 `blocked()` sites, 0 remaining legacy calls) has been migrated to the new API. Weak references are available as an opt-in feature via `weakref=True` kwarg or `HS_EVENT_WEAKREF=1` env var, with listener auto-disconnect for bound methods. In HyperSpy 3.0, the old API surface is removed and `psygnal.Signal` becomes the public API.
 
 ## Problem
 
@@ -58,13 +58,13 @@ This generates a new function via `exec()` every time an `Event` is constructed 
 
 ## Proposed approach
 
-Rewrite `hyperspy/events.py` as a psygnal-backed implementation. The `Event`, `Events`, and `EventSuppressor` classes remain as the public API in 2.5, but a psygnal-native dual API is added (`emit()`, `blocked()`, `__call__()`), all internal HyperSpy code is migrated to it, and the old API emits `VisibleDeprecationWarning`.
+Rewrite `hyperspy/events.py` as a psygnal-backed implementation. The `Event` class now subclasses `psygnal.SignalInstance` directly, the old `Events` container class is replaced by `psygnal.SignalGroup` subclasses using `EventSignal` factory descriptors, and the legacy (`trigger()`, `suppress()`, `suppress_callback()`, `connect(kwargs=...)`) API is preserved as a deprecated shim emitting `VisibleDeprecationWarning`.
 
-The migration is a single coherent change with three concerns, each independently revertible:
+The migration is a single coherent change with three concerns:
 
-1. **psygnal adapter with weakref default** — rewrite `events.py` to use psygnal under the hood for connection management and dispatch. `weakref=True` becomes the default for `connect()` with a kill-switch (`HS_EVENT_WEAKREF=0` env var) for downstream compatibility. Fixes the #1 bug class (listener leaks).
-2. **Eliminate `exec()`** — remove `_trigger_maker`, reimplement `arguments=` validation with `inspect.Signature`-based runtime validation. Add throttling/debouncing support (psygnal built-in).
-3. **psygnal-native dual API + deprecation** — add `emit()`, `blocked()`, `__call__()` as the preferred API. Migrate all ~78 internal `trigger()` calls to `emit()`, all ~30 `connect(fn, [])` to `connect(fn)` (with lambda wrappers where needed), all 4 `connect(fn, {dict})` to explicit lambda wrappers, all 9 `suppress()` to `blocked()`, and the 1 `suppress_callback()` to the guard-flag pattern. The old API stays as deprecated aliases with `VisibleDeprecationWarning`.
+1. **psygnal integration** — rewrite `events.py` to subclass `psygnal.SignalInstance` for connection management and dispatch. The `EventSignal` factory returns a `psygnal.Signal` descriptor configured with `signal_instance_class=Event`. The old `Events` dynamic container is replaced by `psygnal.SignalGroup` subclasses declared statically. Weakref connections are opt-in via `weakref=True` kwarg or `HS_EVENT_WEAKREF=1` env var.
+2. **Eliminate `exec()`** — remove `_trigger_maker`, reimplement `arguments=` validation with `inspect.Signature`-based runtime validation at both construction time and emit time. `Event.emit()` has custom dispatch logic: 3-group slot ordering (all → some → map), positional-to-keyword argument mapping.
+3. **psygnal-native dual API + deprecation** — add `emit()`, `blocked()`, `__call__()` (inherited from `SignalInstance`) as the preferred API. Migrate all 78 internal `trigger()` calls to `emit()`, all ~30 `connect(fn, [])` to `connect(fn)` (with lambda wrappers where needed), all 4 `connect(fn, {dict})` to explicit lambda wrappers, all ~9 `suppress()` to `blocked()`, and the 1 `suppress_callback()` to the guard-flag pattern. The old API stays as deprecated shim with `VisibleDeprecationWarning`.
 
 In **HyperSpy 3.0** (separate future PR), the old `Event`/`Events`/`EventSuppressor` API is removed and psygnal's native `Signal`/`SignalGroup` becomes the public API.
 
@@ -97,29 +97,26 @@ psygnal is built by the [napari](https://github.com/napari/napari) maintainers (
 ### Non-breaking (2.5)
 
 - All downstream consumer code (pyxem, exspy, lumispy, user scripts) remains unchanged — the old API is preserved as deprecated aliases with `VisibleDeprecationWarning`.
-- All existing tests pass: `test_events.py`, `test_interactive.py`, `test_figure.py`, `test_widget.py`, `test_parameter.py`, `test_samfire.py`, and the full test suite.
-- Every current behavior is preserved: `ValueError` on duplicate connect, `ValueError` on disconnect-not-connected, `.connected` set property, exception-abort semantics (one failing callback aborts remaining dispatch), `EventSuppressor`, `Events` dynamic registration, dict-rename `connect(fn, {"obj": "widget"})`, `arguments=` validation, `kwargs="auto"` mode, `__deepcopy__`.
+- All existing tests pass: `test_events.py` (47 tests), `test_events_performance.py` (3 benchmarks), `test_interactive.py`, `test_figure.py`, `test_widget.py`, `test_parameter.py`, `test_samfire.py`, and the full test suite.
+- Every current behavior is preserved: `ValueError` on duplicate connect, `ValueError` on disconnect-not-connected, `.connected` set property, exception-abort semantics (one failing callback aborts remaining dispatch), `EventSuppressor`, `arguments=` validation, `kwargs="auto"` mode, `__deepcopy__`.
 - HyperSpy's Enthought `traits` system (used for GUI configuration) is completely separate and unaffected.
 
-### Breaking (2.5 — weakref default)
+### Breaking (weakref — opt-in only)
 
-One intentional behavior change: `weakref=True` becomes the default for `Event.connect()`. Bound methods of garbage-collected objects now auto-disconnect. This is the explicit accepted risk — it fixes the #1 bug class (listener leaks) but could break code that relies on the event keeping bound methods alive. Mitigations:
-
-- **Kill-switch**: `HS_EVENT_WEAKREF=0` environment variable disables weakref globally.
-- **Per-connection opt-out**: `connect(f, weakref=False)` restores old behavior for specific connections (emits `VisibleDeprecationWarning`).
-- **Lambdas unaffected**: psygnal holds strong references for non-weakrefable callables (lambdas, module-level functions).
+Weakref connections are **opt-in**, not default-on. Users must explicitly pass `weakref=True` or set `HS_EVENT_WEAKREF=1`. The default behavior (strong refs) is unchanged. This is less aggressive than the originally proposed default-on approach — avoids breaking downstream code that relies on the event keeping bound methods alive.
 
 ### Breaking (3.0 — future PR)
 
 In HyperSpy 3.0, the old API surface is removed:
 
-- `Event`/`Events`/`EventSuppressor` → psygnal `Signal`/`SignalGroup`.
+- `Event`/`EventSuppressor` → psygnal `Signal`/`SignalGroup` (the `Events` container class is already removed in 2.5).
 - `trigger()` → `emit()`.
 - `suppress()` → `blocked()`.
 - `connect(kwargs=...)` → `connect()` with explicit wrapper functions.
 - `arguments=` parameter → psygnal type-annotated Signals.
-- `weakref` parameter removed (always on).
-- `_trigger_maker` removed.
+- `weakref` parameter added (not present in 2.5).
+- `EventSignal` factory → psygnal `Signal` (17 remaining instances annotated with `# replace EventSignal with psygnal.Signal`).
+- `_trigger_maker` already removed.
 
 Downstream packages get a full 2.5 release cycle with deprecation warnings to migrate.
 
@@ -127,39 +124,40 @@ Downstream packages get a full 2.5 release cycle with deprecation warnings to mi
 
 | Concern | Effort | Description |
 |---|---|---|
-| psygnal adapter + weakref | Large | Rewrite events.py to use psygnal, preserve all behaviors, weakref=True default with kill-switch, regression tests |
-| Eliminate exec | Medium | Replace `_trigger_maker` with `inspect.Signature` validation, throttling/debouncing, perf benchmarks |
-| Dual API + deprecation | Large | Add emit()/blocked()/**call**(), migrate ~78 trigger + ~30 connect([]) + 4 connect({}) + 9 suppress + 1 suppress_callback, enable VisibleDeprecationWarning, 15 new tests, changelog, 3.0 roadmap doc |
-| Total | XL | 36 files changed, 66 event tests, all verification passed |
+| psygnal integration | Large | Rewrite events.py to subclass SignalInstance, EventSignal factory descriptors, psygnal.SignalGroup containers, preserve all behaviors, regression tests |
+| Eliminate exec | Medium | Replace `_trigger_maker` with `inspect.Signature` validation (construction + emit time), perf benchmarks |
+| Dual API + deprecation | Large | Add emit()/blocked() (inherited from SignalInstance), migrate 78 trigger + ~30 connect([]) + 4 connect({}) + ~9 suppress + 1 suppress_callback, enable VisibleDeprecationWarning, 47 tests + 3 benchmarks, changelog, 3.0 migration guide |
+| Total | XL | 22 files changed, 926-line events.py, all verification passed |
 
 ### Affected repos
 
 | Repo | Changes |
 |---|---|
-| `hyperspy/hyperspy` | `events.py` rewrite, `pyproject.toml` (new dependency + warning filters), `conda_environment*.yml`, 26 production files (call-site migration), `tests/test_events.py` (+15 tests), `tests/test_events_performance.py` (new), `tests/__init__.py` (warning filters), `upcoming_changes/`, `doc/user_guide/events_migration.rst` (3.0 roadmap) |
+| `hyperspy/hyperspy` | `events.py` rewrite (926 lines), `pyproject.toml` (psygnal>=0.11 + warning filters), `conda_environment*.yml`, 22 production files (call-site migration: 78 emit, 10 blocked, 59 connect), `tests/test_events.py` (47 tests), `tests/test_events_performance.py` (3 benchmarks), `upcoming_changes/`, `doc/user_guide/events_migration.rst` (3.0 roadmap, 287 lines) |
 
 ## Scope
 
 ### What's included
 
-- `hyperspy/events.py` rewritten as psygnal-backed implementation — `Event`, `Events`, `EventSuppressor` public API preserved.
-- `psygnal>=0.10` added as hard dependency in `pyproject.toml`, `conda_environment.yml`, `conda_environment_dev.yml`.
-- `_trigger_maker` `exec()` + `sys._getframe()` eliminated — replaced with `inspect.Signature`-based runtime validation.
-- Three-collection sequential dispatch replaced with psygnal-style connection management + per-connection kwarg adapter wrappers.
-- `weakref=True` default for `Event.connect()` with kill-switch (`HS_EVENT_WEAKREF=0` env var) and per-connection opt-out (`weakref=False`).
-- Throttling/debouncing support (`Event.throttle(interval)`, `Event.debounce(interval)` context managers) for high-frequency events.
-- `max_listeners` parameter on `connect()` for leak detection in development.
-- Psygnal-native dual API: `Event.emit(*args)`, `Event.__call__(*args)`, `Event.blocked()`, `Events.blocked()`.
-- `VisibleDeprecationWarning` on all deprecated methods: `trigger()`, `suppress()`, `Events.suppress()`, `suppress_callback()`, `connect(kwargs=...)` (non-`"all"`), `connect(weakref=False)`, `arguments=`.
-- All ~78 internal `trigger()` calls migrated to `emit()` across 15 production files.
+- `hyperspy/events.py` rewritten as psygnal-backed implementation (926 lines) — `Event` subclasses `psygnal.SignalInstance`, `EventSignal` factory produces `psygnal.Signal` descriptors, `EventSuppressor` public API preserved.
+- The old `Events` dynamic container class removed — replaced by `psygnal.SignalGroup` subclasses (declared statically in each module).
+- `psygnal>=0.11` added as hard dependency in `pyproject.toml`, `conda_environment.yml`, `conda_environment_dev.yml`.
+- `_trigger_maker` `exec()` + `sys._getframe()` eliminated — replaced with `inspect.Signature`-based runtime validation at both construction time (`EventSignal` factory) and emit time (`_validate_emit_kwargs`).
+- `Event.emit()` has custom dispatch logic: 3-group slot ordering (all → some → map), positional-to-keyword argument mapping, single-positional-arg-to-`obj` convention.
+- `max_listeners` parameter on `Event` instances for leak detection (emits `VisibleDeprecationWarning` when limit exceeded).
+- Psygnal-native API: `Event.emit(*args)`, `Event.__call__(*args)`, `Event.blocked()` (all inherited from `SignalInstance`).
+- Opt-in weakref connections via `weakref=True` kwarg or `HS_EVENT_WEAKREF=1` env var. For `kwargs="all"`, psygnal's native `WeakMethod` handles auto-disconnect. For `kwargs=list`/`dict`, `_WeakListWrapper`/`_WeakDictWrapper` classes hold `WeakMethod`.
+- `VisibleDeprecationWarning` on all deprecated methods: `trigger()`, `suppress()`, `suppress_callback()`, `connect(kwargs=...)` (non-`"all"`), `arguments=`.
+- All 78 internal `trigger()` calls migrated to `emit()` across 22 production files.
 - All ~30 `connect(fn, [])` calls migrated to `connect(fn)` (with lambda wrappers where the callback does not accept `**kwargs`/`*args`).
 - All 4 `connect(fn, {dict})` dict-rename calls migrated to explicit `connect(lambda obj: fn(widget=obj))` wrappers.
-- All 9 `suppress()` calls migrated to `blocked()`.
-- The 1 `suppress_callback()` call migrated to the guard-flag pattern (callback owns its boolean suppression flag, checks it at entry, returns early when suppressed).
-- 3.0 migration roadmap document in `doc/user_guide/events_migration.rst` with guard-flag pattern example.
-- 15 new regression tests (66 total in `test_events.py`) covering emit/blocked/call-alias/deprecation-warnings.
-- Performance benchmarks in `test_events_performance.py`.
+- All ~9 `suppress()` calls migrated to `blocked()` (10 sites across 6 files after migration).
+- The 1 `suppress_callback()` call migrated to the guard-flag pattern (`model.py`).
+- 3.0 migration roadmap document in `doc/user_guide/events_migration.rst` (287 lines) with guard-flag pattern example.
+- 47 regression tests in `test_events.py` covering emit/blocked/call-alias/deprecation-warnings + 14 weakref-specific tests.
+- Performance benchmarks in `test_events_performance.py` (3 active benchmarks).
 - Changelog entries in `upcoming_changes/`.
+- 17 `EventSignal` instances annotated with `# in HyperSpy 3.0, replace EventSignal with psygnal.Signal` for the 3.0 migration.
 
 ### What's explicitly NOT included
 
@@ -167,6 +165,8 @@ Downstream packages get a full 2.5 release cycle with deprecation warnings to mi
 - Changes to `hyperspy/api.py` `__all__` exports.
 - Changes to Enthought `traits` usage (separate system, unaffected).
 - Introduction of `async`/`await` in any consumer code — 2.5 is synchronous-only.
+- Weakref as default — weakref is opt-in only. The originally proposed `weakref=True` default with `HS_EVENT_WEAKREF=0` kill-switch was not implemented.
+- `Event.throttle()`/`Event.debounce()` context managers — removed in favor of `@psygnal.throttled`/`@psygnal.debounced` decorators on individual callbacks.
 - The 3.0 breaking changes — only deprecation warnings and migration documentation in 2.5.
 - `EventedObjectProxy` for numpy array mutation detection (3.0 feature).
 - `EventedModel` for pydantic v2 parameter models (3.0 feature).
@@ -181,7 +181,6 @@ Downstream packages get a full 2.5 release cycle with deprecation warnings to mi
 - PR [#3640](https://github.com/hyperspy/hyperspy/pull/3640) — listener leak fix
 - PR [#3629](https://github.com/hyperspy/hyperspy/pull/3629) — listener leak fix
 - PR [#3648](https://github.com/hyperspy/hyperspy/pull/3648) — listener leak fix
-- issue [#3630](https://github.com/hyperspy/hyperspy/issues/3630) — discussion on events migration
 - Proposal [0005](https://github.com/hyperspy/hyperspy-proposals/pull/5) — Lazy Expressions (depends on events for staleness detection)
 
 ## Technical design
@@ -211,36 +210,47 @@ hyperspy/events.py (old, 569 lines)
 ### New architecture (2.5)
 
 ```text
-hyperspy/events.py (new, 1037 lines)
-├── Events (container — public API preserved)
-│   ├── __setattr__/__getattr__/__delattr__ magic (preserved — psygnal SignalGroup is declarative, incompatible)
-│   ├── blocked() — NEW: iterates contained Events, calls each blocked()
-│   ├── suppress() — DEPRECATED: delegates to blocked() with VisibleDeprecationWarning
-│   └── _update_doc() — preserved
-├── Event (psygnal-backed)
-│   ├── __init__(doc, arguments, max_listeners) — arguments= validated via inspect.Signature (no exec)
-│   ├── emit(*args, **kwargs) — NEW: maps positional args via _arguments, dispatches
-│   ├── __call__(*args, **kwargs) — NEW: alias for emit()
-│   ├── trigger(*args, **kwargs) — DEPRECATED: delegates to emit() with VisibleDeprecationWarning
-│   ├── blocked() — NEW: context manager (counter-based, nestable)
-│   ├── suppress() — DEPRECATED: delegates to blocked() with VisibleDeprecationWarning
-│   ├── suppress_callback(f) — DEPRECATED: warns; stays functional for backward compat
-│   ├── connect(f, kwargs, weakref, max_listeners) — creates wrapper, optional weakref
-│   │   ├── kwargs="all" → wrapper passes all emit kwargs
-│   │   ├── kwargs="auto" → wrapper inspects f's signature
-│   │   ├── kwargs=["a","b"] → wrapper filters kwargs
-│   │   ├── kwargs={"a":"b"} → wrapper remaps kwargs (dict-rename)
-│   │   ├── weakref=True → WeakMethod for bound methods, strong ref for lambdas
-│   │   └── weakref=False → strong ref (deprecated, warns)
-│   ├── disconnect(f) — removes f's wrapper, raises ValueError if not connected
-│   ├── throttle(interval) — NEW: context manager, limits dispatch to once per interval
-│   ├── debounce(interval) — NEW: context manager, defers dispatch until silence
-│   ├── connected property → returns set of original functions (not wrappers)
+hyperspy/events.py (new, 926 lines)
+├── EventSignal(*types, description, arguments) — FACTORY FUNCTION
+│   └── Returns psygnal.Signal descriptor with signal_instance_class=Event
+│       Used as class attributes on psygnal.SignalGroup subclasses
+│   └── Builds inspect.Signature from legacy arguments= for type validation
+├── Event(SignalInstance) — psygnal subclass
+│   ├── __init__(signature, doc, arguments, instance, name, ...)
+│   ├── emit(*args, **kwargs) — OVERRIDES psygnal: custom dispatch
+│   │   ├── Positional→keyword mapping (zip with _arguments or "obj" convention)
+│   │   ├── Guard: _is_blocked (psygnal) + _suppress (legacy flag)
+│   │   └── Three-group dispatch: "all" slots → "some" wrappers → "map" wrappers
+│   ├── trigger(*args, **kwargs) — DEPRECATED: delegates to emit()
+│   ├── blocked() — INHERITED from SignalInstance (counter-based, nestable)
+│   ├── suppress() — DEPRECATED: delegates to _suppress flag context manager
+│   ├── connect(function, kwargs="all", *, weakref=None, **psygnal_opts)
+│   │   ├── kwargs="all" → passes all emit kwargs (passthrough)
+│   │   ├── kwargs="auto" → inspects function signature
+│   │   ├── kwargs=["a","b"] → filters kwargs
+│   │   ├── kwargs={"a":"b"} → remaps kwargs (dict-rename)
+│   │   ├── kwargs=[] → calls function() with no args (empty wrapper)
+│   │   └── weakref=True → opt-in WeakMethod for bound methods, _WeakListWrapper/_WeakDictWrapper for filtered paths
+│   ├── disconnect(function) — removes wrapper, raises ValueError if not found
+│   ├── suppress_callback(function) — DEPRECATED: stays functional
+│   ├── connected property — iterates _slots, returns originals, filters dead wrappers
 │   └── __deepcopy__ — new Event with no connections
-└── EventSuppressor (composite — public API preserved)
-    ├── add(Event|Events|(Event,callback)|(Events,callback)|iterable)
-    └── suppress() — enters all Event.suppress()/suppress_callback() context managers
+├── _WeakListWrapper / _WeakDictWrapper — WeakMethod-holding callable classes
+├── EventSuppressor (composite — public API preserved)
+│   ├── add(Event|SignalGroup|(Event,callback)|(SignalGroup,callback))
+│   └── suppress() — enters all context managers simultaneously
+└── Container: psygnal.SignalGroup subclasses (replaces old Events class)
+    └── Static class attributes using EventSignal descriptors
 ```
+
+**Key architectural decisions:**
+
+- `Event` **subclasses** `psygnal.SignalInstance` — not just wraps it. All native psygnal methods (`emit`, `blocked`, `block`, `unblock`) are available. The `emit()` method is overridden to add legacy dispatch semantics.
+- `EventSignal` is a **factory function**, not a class. It returns `psygnal.Signal(...)` with `signal_instance_class=Event` and `check_nargs_on_connect=False`. This avoids psygnal descriptor subclassing issues.
+- The old `Events` container class is **removed**. Dynamic event registration (`__setattr__`/`__getattr__` magic) is replaced by static `psygnal.SignalGroup` subclasses with `EventSignal` descriptors.
+- No `_signal` dormant field — `EventSignal` IS the `psygnal.Signal` descriptor. The `Event` instance is the runtime object.
+- `emit()` has custom dispatch logic (3-group ordering: all → some → map). It does not delegate to psygnal's `_run_emit_loop` because legacy HyperSpy code depends on specific dispatch order and exception-abort semantics.
+- `inspect.Signature` validation happens at two stages: construction time (in `EventSignal` factory, building parameters from `arguments=`) and emit time (in `_validate_emit_kwargs`, binding and applying defaults).
 
 ### Per-connection kwarg adapter
 
@@ -260,70 +270,73 @@ def wrapper(**event_kwargs):
     function(**{fn: event_kwargs[tn] for tn, fn in rename_map.items()})
 ```
 
-### weakref with kill-switch
+### weakref opt-in (implemented)
+
+Weak references are opt-in via `weakref=True` kwarg or `HS_EVENT_WEAKREF=1` env var:
 
 ```python
-import os
-
 class Event:
-    def connect(self, function, kwargs="all", weakref=None, max_listeners=None):
-        if weakref is None:
-            weakref = os.environ.get("HS_EVENT_WEAKREF", "1") != "0"
-        if weakref is False:
-            warnings.warn(
-                "weakref=False is deprecated and will be removed in 3.0. "
-                "Use HS_EVENT_WEAKREF=0 env var for global opt-out.",
-                VisibleDeprecationWarning, stacklevel=2,
-            )
-        # Weakref only applies to kwargs="all" with bound methods.
-        # Plain functions/lambdas cannot be weak-referenced.
-        use_weakref = weakref and resolved_kwargs == "all" and inspect.ismethod(function)
-        if use_weakref:
-            ref = weakref.WeakMethod(function)
-            def wrapper(**event_kwargs):
-                fn = ref()
-                if fn is not None:
-                    fn(**event_kwargs)
+    def _resolve_weakref(self, weakref):
+        """Resolve the weakref tri-state into a boolean."""
+        if weakref is not None:
+            return bool(weakref)
+        return os.environ.get("HS_EVENT_WEAKREF", "0").lower() in ("1", "true", "yes")
+
+    def connect(self, function, kwargs="all", *, weakref=None, **psygnal_opts):
+        weakref = self._resolve_weakref(weakref)
+        # ...
+        if kwargs == "all":
+            if weakref and inspect.ismethod(function):
+                super().connect(function, unique="raise", **psygnal_opts)
+                # Do NOT store in _connected_originals or _slot_mode —
+                # psygnal's native WeakMethod handles the slot lifecycle
+            else:
+                super().connect(function, **psygnal_opts)
+                self._connected_originals.add(function)
+                self._slot_mode[function] = "all"
 ```
 
-### arguments= validation without exec
+For `kwargs=list`/`dict` with weakref=on, wrapper classes hold `WeakMethod`:
 
 ```python
-class Event:
-    def __init__(self, doc="", arguments=None, max_listeners=None):
-        if arguments is not None:
-            warnings.warn(
-                "The 'arguments' parameter is deprecated and will be removed "
-                "in HyperSpy 3.0. Use psygnal.Signal with type annotations.",
-                VisibleDeprecationWarning, stacklevel=2,
-            )
-        self._arguments = tuple(arguments) if arguments else None
-        self._signal = psygnal.Signal()  # dormant, for 3.0 cutover
-        if arguments:
-            self._arg_names = []
-            self._arg_defaults = {}
-            for arg in arguments:
-                if isinstance(arg, (tuple, list)):
-                    name, default = arg[0], arg[1]
-                    self._arg_names.append(name)
-                    self._arg_defaults[name] = default
-                else:
-                    self._arg_names.append(arg)
+class _WeakListWrapper:
+    def __init__(self, function, kwarg_list):
+        self._ref = weakref.WeakMethod(function)
+        self._kwarg_list = tuple(kwarg_list)
+    def __call__(self, **kw):
+        fn = self._ref()
+        if fn is None:
+            return
+        fn(**{k: kw.get(k) for k in self._kwarg_list})
+```
 
-    def emit(self, *args, **kwargs):
-        # Map positional args to named arguments
-        if self._arguments is not None and args:
-            for i, value in enumerate(args):
-                if i < len(self._arg_names):
-                    kwargs[self._arg_names[i]] = value
-        # Validate against arguments= signature
+Non-weakrefable callables (lambdas, module functions) silently fall back to strong ref.
+
+### arguments= validation without exec (implemented)
+
+Two-stage validation replaces the old `exec()`-based `_trigger_maker`:
+
+```python
+# Stage 1: EventSignal factory — build Signature for psygnal type checking
+def EventSignal(*types, description="", arguments=None, **kwargs):
+    if not types and arguments:
+        params = [Parameter(
+            a[0] if isinstance(a, (tuple, list)) else a,
+            Parameter.KEYWORD_ONLY,
+            default=a[1] if isinstance(a, (tuple, list)) else Parameter.empty
+        ) for a in arguments]
+        types = (Signature(params),)
+    return psygnal.Signal(*types, signal_instance_class=Event, ...)
+
+# Stage 2: Event._validate_emit_kwargs — runtime validation at emit time
+class Event(SignalInstance):
+    def _validate_emit_kwargs(self, kwargs):
         if self._arguments is not None:
-            for key in kwargs:
-                if key not in self._arg_names:
-                    raise TypeError(
-                        f"emit() got an unexpected keyword argument '{key}'"
-                    )
-        self._dispatch(**kwargs)
+            sig = Signature([...])  # build from _arguments
+            bound = sig.bind(**kwargs)
+            bound.apply_defaults()
+            return dict(bound.arguments)
+        return kwargs
 ```
 
 ### Guard-flag pattern (replaces suppress_callback)
@@ -359,21 +372,20 @@ with self._suppress_fetch():
 
 | 2.5 API | 3.0 API |
 |---|---|
-| `obj.events.data_changed.trigger(obj=self)` | `obj.data_changed.emit(self)` |
-| `obj.events.data_changed.connect(f, kwargs=["obj"])` | `obj.data_changed.connect(lambda obj: f(obj=obj))` |
+| `obj.events.data_changed.emit(obj=self)` | `obj.data_changed.emit(self)` |
+| `obj.events.data_changed.connect(f)` | `obj.data_changed.connect(lambda *a, **kw: f(**kw))` (or native) |
 | `obj.events.data_changed.connect(f, kwargs={"obj": "widget"})` | `obj.data_changed.connect(lambda obj: f(widget=obj))` |
-| `with obj.events.suppress():` | `with obj.data_changed.blocked():` |
+| `with obj.events.data_changed.blocked():` | `with obj.data_changed.blocked():` |
 | `with obj.events.data_changed.suppress_callback(f):` | Guard-flag pattern (callback checks own flag) |
-| `Event(arguments=["obj", "value"])` | `psygnal.Signal(object, object)` |
+| `EventSignal(object, arguments=["obj", "value"])` | `psygnal.Signal(object, object)` |
 | `event.connected` | `signal._iter_slots()` or psygnal equivalent |
+| `psygnal.SignalGroup` subclass with `EventSignal` descriptors | `psygnal.SignalGroup` subclass with `psygnal.Signal` descriptors |
 
 ### Bottleneck removal summary
 
 | Bottleneck | Solution |
 |---|---|
-| `_trigger_maker` exec() + sys._getframe() | `inspect.Signature` runtime validation |
-| Three sequential callback collections | psygnal-style connection management + kwarg wrappers |
-| No weakref tracking (listener leaks) | `weakref=True` default with kill-switch |
+| `_trigger_maker` exec() + sys._getframe() | `inspect.Signature` runtime validation (two-stage) |
+| Three sequential callback collections | Slot-group dispatch: "all" → "some" → "map" ordering |
 | No async dispatch | psygnal is internally async-ready; 2.5 uses sync dispatch, 3.0 enables async |
-| No throttling/debouncing | `Event.throttle(interval)` / `Event.debounce(interval)` context managers |
 | No numpy mutation detection | psygnal `EventedObjectProxy` (3.0 feature) |
