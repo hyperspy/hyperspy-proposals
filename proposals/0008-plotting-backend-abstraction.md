@@ -12,12 +12,12 @@ created: 2026-07-19
 ## Summary
 
 HyperSpy's interactive plotting is wired directly to matplotlib throughout the
-`drawing` layer, which makes it impossible to add a different renderer. Matplotlib 
-is a vector based graphing utility which is important for scalable, and high quality 
-figures, but it is slow and difficult to update. For large datasets, or images it is 
-insufficient. This proposal introduces a small, explicit `PlottingBackend` **protocol** — 
-a fixed spec of drawing operations.  This is inspired by the way that Tinygrad defined 
-a narrow operation spec that each compute backend satisfies.  In addition there is a 
+`drawing` layer, which makes it impossible to add a different renderer. Matplotlib
+is a vector based graphing utility which is important for scalable, and high quality
+figures, but it is slow and difficult to update. For large datasets, or images it is
+insufficient. This proposal introduces a small, explicit `PlottingBackend` **protocol** —
+a fixed spec of drawing operations. This is inspired by the way that Tinygrad defined
+a narrow operation spec that each compute backend satisfies. In addition there is a
 **registry**, so that `signal.plot()` is backend-agnostic and new backends can be registered
 from external packages without touching hyperspy. Matplotlib stays the default and reference
 backend; a second `anyplotlib` backend is included to prove the abstraction is
@@ -53,7 +53,7 @@ Define a **limited spec** — a `PlottingBackend` protocol of roughly 60 methods
 that captures every drawing primitive the generic layer needs (create figure /
 axes, plot line / image/ mesh, text, markers, colorbar, events, blitting,
 widgets/pointers, scalebar, explorers). Core drawing code calls *only* these
-methods; each backend implements them. 
+methods; each backend implements them.
 
 The design is deliberately modelled on how projects like **tinygrad / PyTorch**
 define a narrow operation spec that every compute backend satisfies. The payoff
@@ -66,13 +66,12 @@ package registers a backend in its own `pyproject.toml` with zero changes to
 hyperspy. Matplotlib and anyplotlib are registered by hyperspy itself through
 the same mechanism, so built-in and third-party backends are on equal footing.
 
-(Alternatively the anyplotlib backend could be vendored into hyperspy, although it 
+(Alternatively the anyplotlib backend could be vendored into hyperspy, although it
 is fairly small so I'd recommend vendoring it with hyperspy. It also has GPU
 acceleration for images over 1k x 1k pixels and support for 3D Rendering.)
 
 Selection is opt-in and non-breaking: matplotlib is the default; a user
 switches with the `Plot.backend` preference or the `%anyplotlib` IPython magic.
-
 
 ### Alternatives considered
 
@@ -100,7 +99,7 @@ switches with the `Plot.backend` preference or the `%anyplotlib` IPython magic.
   calls in the drawing layer move behind the protocol; the matplotlib backend
   preserves current behavior.
 - **Effort:** Large but largely complete in [hyperspy#3623] (~15 new modules;
-  the drawing layer refactored behind the protocol). Remaining work: 
+  the drawing layer refactored behind the protocol). Remaining work:
   - [x] anyplotlib PyPI release
   - [x] Playwright test suite
   - [x] Follow-up documentation migration.
@@ -121,7 +120,7 @@ switches with the `Plot.backend` preference or the `%anyplotlib` IPython magic.
 
 - pyqtgraph / fastplotlib backends — future work, expected to live in external
   packages. (maybe not ever done, but the spec is designed to make it possible)
-- The documentation rewrite to anyplotlib + Pyodide — a separate, dependent PR. Ideally done 
+- The documentation rewrite to anyplotlib + Pyodide — a separate, dependent PR. Ideally done
   before merging to check that the new backend is actually usable in the docs.
 - Any new plotting *features* beyond matching current behavior.
 
